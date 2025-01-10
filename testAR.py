@@ -51,8 +51,8 @@ def main():
 enable = st.checkbox("Enable camera")
 cap = st.camera_input("Take a picture", disabled=not enable)
 
-if picture:
-    st.image(picture)
+if cap:
+    st.image(cap)
     
    # stframe = st.empty()
     #cap = cv2.VideoCapture(0)
