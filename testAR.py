@@ -17,8 +17,9 @@ mustache_img, glasses_img = load_filter_images()
 def overlay_filter(frame, filter_img, x, y, w, h):
     # Resize the filter to fit the face feature
     filter_resized = cv2.resize(filter_img, (w, h))
-    for c in range(0, 3):  # Loop through color channels
-        frame[y:y+h, x:x+w, c] = frame[y:y+h, x:x+w, c] * (1 - filter_resized[:, :, 3] / 255) + filter_resized[:, :, c] * (filter_resized[:, :, 3] / 255)
+    if filter_resized.shape[2] == 4:  # Ensure the filter has an alpha channel
+        for c in range(0, 3):  # Loop through color channels
+            frame[y:y+h, x:x+w, c] = frame[y:y+h, x:x+w, c] * (1 - filter_resized[:, :, 3] / 255) + filter_resized[:, :, c] * (filter_resized[:, :, 3] / 255)
 
 # Load the Haar Cascade for face and facial features detection
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
