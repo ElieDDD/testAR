@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Funny Face Filter</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #282c34;
+      color: white;
+    }
+    #video {
+      position: absolute;
+      width: 640px;
+      height: 480px;
+      transform: scaleX(-1);
+    }
+    #canvas {
+      position: absolute;
+      width: 640px;
+      height: 480px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay muted></video>
+  <canvas id="canvas"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+
+    async function startVideo() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        video.srcObject = stream;
+      } catch (error) {
+        console.error('Error accessing webcam:', error);
+      }
+    }
+
+    async function loadModels() {
+      await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+      await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+    }
+
+    async function detectFace() {
+      const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+      if (detections) {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        const { landmarks } = detections;
+        const nose = landmarks.getNose();
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+
+        // Draw glasses
+        context.strokeStyle = 'yellow';
+        context.lineWidth = 4;
+        context.beginPath();
+        context.moveTo(leftEye[0].x, leftEye[0].y);
+        context.lineTo(leftEye[3].x, leftEye[3].y);
+        context.moveTo(rightEye[0].x, rightEye[0].y);
+        context.lineTo(rightEye[3].x, rightEye[3].y);
+        context.stroke();
+
+        // Draw mustache
+        context.fillStyle = 'brown';
+        const noseBottom = nose[nose.length - 1];
+        context.fillRect(noseBottom.x - 30, noseBottom.y, 60, 15);
+      }
+      requestAnimationFrame(detectFace);
+    }
+
+    video.addEventListener('play', () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      detectFace();
+    });
+
+    loadModels().then(startVideo);
+  </script>
+</body>
+</html>
