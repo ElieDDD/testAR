@@ -5,9 +5,7 @@ from PIL import Image
 
 st.set_page_config(page_title="Funny Face Filter", layout="wide")
 st.title("Funny Face Filter App")
-cap = cv2.VideoCapture(0)  # Try 0, 1, or 2 depending on your setup
-if not cap.isOpened():
-    print("Error: Unable to access the camera")
+
 # Load the funny filters (mustache and glasses)
 def load_filter_images():
     mustache = cv2.imread("mustache.png", cv2.IMREAD_UNCHANGED)
@@ -50,8 +48,14 @@ def main():
     run = st.sidebar.checkbox("Run", value=True)
 
     # Start the webcam stream
-    stframe = st.empty()
-    cap = cv2.VideoCapture(0)
+enable = st.checkbox("Enable camera")
+cap = st.camera_input("Take a picture", disabled=not enable)
+
+if picture:
+    st.image(picture)
+    
+   # stframe = st.empty()
+    #cap = cv2.VideoCapture(0)
 
     while run:
         ret, frame = cap.read()
