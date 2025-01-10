@@ -1,92 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Funny Face Filter</title>
-  <style>
-    body {
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background-color: #282c34;
-      color: white;
-    }
-    #video {
-      position: absolute;
-      width: 640px;
-      height: 480px;
-      transform: scaleX(-1);
-    }
-    #canvas {
-      position: absolute;
-      width: 640px;
-      height: 480px;
-      pointer-events: none;
-    }
-  </style>
-</head>
-<body>
-  <video id="video" autoplay muted></video>
-  <canvas id="canvas"></canvas>
+import cv2
+import numpy as np
+import streamlit as st
+from PIL import Image
 
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
-  <script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
+st.set_page_config(page_title="Funny Face Filter", layout="wide")
+st.title("Funny Face Filter App")
 
-    async function startVideo() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-        video.srcObject = stream;
-      } catch (error) {
-        console.error('Error accessing webcam:', error);
-      }
-    }
+# Load the funny filters (mustache and glasses)
+def load_filter_images():
+    mustache = cv2.imread("mustache.png", cv2.IMREAD_UNCHANGED)
+    glasses = cv2.imread("glasses.png", cv2.IMREAD_UNCHANGED)
+    return mustache, glasses
 
-    async function loadModels() {
-      await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-      await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-    }
+mustache_img, glasses_img = load_filter_images()
 
-    async function detectFace() {
-      const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
-      if (detections) {
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        const { landmarks } = detections;
-        const nose = landmarks.getNose();
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
+def overlay_filter(frame, filter_img, x, y, w, h):
+    # Resize the filter to fit the face feature
+    filter_resized = cv2.resize(filter_img, (w, h))
+    for c in range(0, 3):  # Loop through color channels
+        frame[y:y+h, x:x+w, c] = frame[y:y+h, x:x+w, c] * (1 - filter_resized[:, :, 3] / 255) + filter_resized[:, :, c] * (filter_resized[:, :, 3] / 255)
 
-        // Draw glasses
-        context.strokeStyle = 'yellow';
-        context.lineWidth = 4;
-        context.beginPath();
-        context.moveTo(leftEye[0].x, leftEye[0].y);
-        context.lineTo(leftEye[3].x, leftEye[3].y);
-        context.moveTo(rightEye[0].x, rightEye[0].y);
-        context.lineTo(rightEye[3].x, rightEye[3].y);
-        context.stroke();
+# Load the Haar Cascade for face and facial features detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-        // Draw mustache
-        context.fillStyle = 'brown';
-        const noseBottom = nose[nose.length - 1];
-        context.fillRect(noseBottom.x - 30, noseBottom.y, 60, 15);
-      }
-      requestAnimationFrame(detectFace);
-    }
+def detect_and_draw_filters(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    for (x, y, w, h) in faces:
+        # Draw glasses on the face
+        glasses_w = int(w * 0.8)
+        glasses_h = int(h * 0.2)
+        glasses_x = x + int(w * 0.1)
+        glasses_y = y + int(h * 0.2)
+        overlay_filter(frame, glasses_img, glasses_x, glasses_y, glasses_w, glasses_h)
 
-    video.addEventListener('play', () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      detectFace();
-    });
+        # Draw mustache under the nose
+        mustache_w = int(w * 0.6)
+        mustache_h = int(h * 0.15)
+        mustache_x = x + int(w * 0.2)
+        mustache_y = y + int(h * 0.6)
+        overlay_filter(frame, mustache_img, mustache_x, mustache_y, mustache_w, mustache_h)
 
-    loadModels().then(startVideo);
-  </script>
-</body>
-</html>
+    return frame
+
+def main():
+    st.sidebar.title("Controls")
+    run = st.sidebar.checkbox("Run", value=True)
+
+    # Start the webcam stream
+    stframe = st.empty()
+    cap = cv2.VideoCapture(0)
+
+    while run:
+        ret, frame = cap.read()
+        if not ret:
+            st.error("Failed to capture video")
+            break
+
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = detect_and_draw_filters(frame)
+
+        stframe.image(frame, channels="RGB", use_column_width=True)
+
+    cap.release()
+
+if __name__ == "__main__":
+    main()
