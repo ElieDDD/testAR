@@ -1,6 +1,6 @@
+import streamlit as st
 import cv2
 import numpy as np
-import streamlit as st
 from PIL import Image
 
 st.set_page_config(page_title="Funny Face Filter", layout="wide")
@@ -45,30 +45,22 @@ def detect_and_draw_filters(frame):
 
 def main():
     st.sidebar.title("Controls")
-    run = st.sidebar.checkbox("Run", value=True)
+    st.sidebar.write("Use the Streamlit camera input below to upload an image.")
 
-    # Start the webcam stream
-enable = st.checkbox("Enable camera")
-cap = st.camera_input("Take a picture", disabled=not enable)
+    # Use Streamlit's camera input
+    img_file = st.camera_input("Take a picture")
 
-if cap:
-    st.image(cap)
-    
-   # stframe = st.empty()
-    #cap = cv2.VideoCapture(0)
+    if img_file is not None:
+        # Convert the uploaded image to OpenCV format
+        img = Image.open(img_file)
+        frame = np.array(img)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-    while run:
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Failed to capture video")
-            break
+        # Apply funny filters
+        frame_with_filters = detect_and_draw_filters(frame)
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = detect_and_draw_filters(frame)
-
-        stframe.image(frame, channels="RGB", use_column_width=True)
-
-    cap.release()
+        # Display the resulting image
+        st.image(frame_with_filters, channels="BGR", caption="With Funny Filters")
 
 if __name__ == "__main__":
     main()
